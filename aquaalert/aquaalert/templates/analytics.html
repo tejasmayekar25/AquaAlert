@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AquaAlert — Analytics &amp; Prediction</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <link rel="stylesheet" href="/static/analytics.css"/>
+  <script src="/static/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+</head>
+<body>
+
+  <!-- ════════════════════════════════════════════
+       HEADER
+  ════════════════════════════════════════════ -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <span class="header-icon">🌊</span>
+        <div class="header-text">
+          <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <h1 class="header-title">AquaAlert</h1>
+            <span style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.65rem; font-weight: 700; padding: 0.15rem 0.55rem; border-radius: 9999px; background: rgba(14, 165, 233, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); letter-spacing: 0.04em;">
+              ML ENGINE
+            </span>
+          </div>
+          <p class="header-subtitle">Analytics &amp; Forecasting Engine</p>
+        </div>
+      </div>
+      <nav class="header-nav">
+        <a href="/"                class="nav-link">🏠 Home</a>
+        <a href="/dashboard"       class="nav-link">📊 Dashboard</a>
+        <a href="/mumbai-drainage" class="nav-link" style="color: #60a5fa; font-weight: 700;">🌧️ Mumbai Drainage</a>
+        <a href="/analytics"       class="nav-link nav-link--active">🔮 Analytics</a>
+        <a href="/about"           class="nav-link">ℹ️ About</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ════════════════════════════════════════════
+       MAIN
+  ════════════════════════════════════════════ -->
+  <main class="analytics-main">
+
+    <!-- Page Title & Controls -->
+    <div class="analytics-hero">
+      <div class="analytics-hero__left">
+        <h2 class="analytics-hero__title">🔮 Flood Risk Analytics &amp; Prediction</h2>
+        <p class="analytics-hero__sub">India flood risk dataset · 11,800 records · ML-powered linear regression forecasting</p>
+      </div>
+      <div class="analytics-hero__controls">
+        <label class="ctrl-label" for="predict-months">Forecast Horizon:</label>
+        <select id="predict-months" class="ctrl-select">
+          <option value="6">Next 2 seasons</option>
+          <option value="12" selected>Next 4 seasons</option>
+          <option value="18">Next 6 seasons</option>
+          <option value="24">Next 8 seasons</option>
+        </select>
+        <button id="refresh-btn" class="ctrl-btn">↻ Refresh</button>
+      </div>
+    </div>
+
+    <!-- ── ESP32 SENSOR WATER LEVEL TELEMETRY & ANALYSIS ─────────────── -->
+    <section class="an-section sensor-analysis-section">
+      <div class="an-section__header">
+        <span class="an-section__icon">🌊</span>
+        <h3 class="an-section__title">ESP32 Live Sensor Telemetry Analysis</h3>
+        <span class="an-section__badge" id="sensor-sync-badge">SOCKET.IO LIVE</span>
+      </div>
+
+      <!-- Sensor Stat Cards -->
+      <div class="an-stat-grid sensor-stat-grid">
+        <div class="an-stat-card an-stat-card--water">
+          <div class="an-stat-card__icon">💧</div>
+          <div class="an-stat-card__value" id="sensor-current-level">-- cm</div>
+          <div class="an-stat-card__label">Current Level (<span id="sensor-current-pct">--%</span>)</div>
+        </div>
+
+        <div class="an-stat-card an-stat-card--risk">
+          <div class="an-stat-card__icon">🎯</div>
+          <div class="an-stat-card__value" id="sensor-status-val">--</div>
+          <div class="an-stat-card__label">Current Status</div>
+        </div>
+
+        <div class="an-stat-card">
+          <div class="an-stat-card__icon">📉</div>
+          <div class="an-stat-card__value" id="sensor-min-level">-- cm</div>
+          <div class="an-stat-card__label">Lowest Recorded</div>
+        </div>
+
+        <div class="an-stat-card an-stat-card--flood">
+          <div class="an-stat-card__icon">📈</div>
+          <div class="an-stat-card__value" id="sensor-max-level">-- cm</div>
+          <div class="an-stat-card__label">Peak / Highest Level</div>
+        </div>
+
+        <div class="an-stat-card">
+          <div class="an-stat-card__icon">📊</div>
+          <div class="an-stat-card__value" id="sensor-avg-level">-- cm</div>
+          <div class="an-stat-card__label">Average Water Level</div>
+        </div>
+
+        <div class="an-stat-card">
+          <div class="an-stat-card__icon">📡</div>
+          <div class="an-stat-card__value" id="sensor-total-count">--</div>
+          <div class="an-stat-card__label">Telemetry Packets</div>
+        </div>
+      </div>
+
+      <!-- Sensor Charts Row -->
+      <div class="an-two-col">
+        <!-- Sensor History Line Chart -->
+        <div class="an-chart-card">
+          <div class="an-chart-header-mini">
+            <span class="an-chart-card__sub">Recorded Water Level Trend</span>
+            <div class="an-chart-legend">
+              <span class="leg-item"><span class="leg-dot" style="background:#06b6d4"></span>Water Level (cm)</span>
+              <span class="leg-item"><span class="leg-dot" style="background:#f59e0b"></span>Percentage (%)</span>
+            </div>
+          </div>
+          <div class="an-chart-wrap">
+            <canvas id="sensor-trend-chart"></canvas>
+          </div>
+        </div>
+
+        <!-- Sensor Status Distribution Donut -->
+        <div class="an-chart-card">
+          <div class="an-chart-header-mini">
+            <span class="an-chart-card__sub">Sensor Status Distribution</span>
+          </div>
+          <div class="an-chart-wrap">
+            <canvas id="sensor-status-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── DATASET SUMMARY STAT CARDS ──────────────────────────── -->
+    <section class="an-stat-grid" id="summary-section">
+      <div class="an-stat-card">
+        <div class="an-stat-card__icon">📋</div>
+        <div class="an-stat-card__value" id="s-total">—</div>
+        <div class="an-stat-card__label">Total Records</div>
+      </div>
+      <div class="an-stat-card an-stat-card--flood">
+        <div class="an-stat-card__icon">🌊</div>
+        <div class="an-stat-card__value" id="s-floods">—</div>
+        <div class="an-stat-card__label">Flood Events</div>
+      </div>
+      <div class="an-stat-card an-stat-card--risk">
+        <div class="an-stat-card__icon">⚠️</div>
+        <div class="an-stat-card__value" id="s-risk">—</div>
+        <div class="an-stat-card__label">Avg Flood Risk</div>
+      </div>
+      <div class="an-stat-card an-stat-card--water">
+        <div class="an-stat-card__icon">💧</div>
+        <div class="an-stat-card__value" id="s-wl">—</div>
+        <div class="an-stat-card__label">Avg Water Level (m)</div>
+      </div>
+      <div class="an-stat-card an-stat-card--rain">
+        <div class="an-stat-card__icon">🌧️</div>
+        <div class="an-stat-card__value" id="s-rf">—</div>
+        <div class="an-stat-card__label">Avg Rainfall (mm)</div>
+      </div>
+      <div class="an-stat-card an-stat-card--rain">
+        <div class="an-stat-card__icon">⚡</div>
+        <div class="an-stat-card__value" id="s-peak-rain" style="font-size: 1.05rem; font-family: var(--font-mono); color: #38bdf8;">—</div>
+        <div class="an-stat-card__label">Peak Rain (Date &amp; Time)</div>
+      </div>
+      <div class="an-stat-card">
+        <div class="an-stat-card__icon">📅</div>
+        <div class="an-stat-card__value" id="s-years">—</div>
+        <div class="an-stat-card__label">Years Covered</div>
+      </div>
+    </section>
+
+    <!-- ── PREDICTION CHART ────────────────────────────────────── -->
+    <section class="an-section">
+      <div class="an-section__header">
+        <span class="an-section__icon">🔮</span>
+        <h3 class="an-section__title">Future Water Level &amp; Flood Risk Prediction</h3>
+        <span class="an-section__badge">LINEAR REGRESSION</span>
+        <div class="model-info" id="model-info-bar"></div>
+      </div>
+      <div class="an-chart-card an-chart-card--full">
+        <div class="an-chart-legend">
+          <span class="leg-item"><span class="leg-dot" style="background:#06b6d4"></span>Historical Water Level</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#f59e0b; border:2px dashed #f59e0b; background:transparent"></span>Predicted Water Level</span>
+          <span class="leg-item"><span class="leg-dot" style="background:#ef4444"></span>Flood Risk %</span>
+        </div>
+        <div class="an-chart-wrap an-chart-wrap--tall">
+          <canvas id="prediction-chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── YEAR-WISE + MONTH-WISE CHARTS ─────────────────────── -->
+    <div class="an-two-col">
+
+      <!-- Year-wise -->
+      <section class="an-section">
+        <div class="an-section__header">
+          <span class="an-section__icon">📅</span>
+          <h3 class="an-section__title">Year-wise Analysis</h3>
+          <span class="an-section__badge">2023 – 2025</span>
+        </div>
+        <div class="an-chart-card">
+          <div class="an-chart-wrap">
+            <canvas id="yearly-chart"></canvas>
+          </div>
+        </div>
+        <div class="yearly-table-wrap" id="yearly-table-wrap"></div>
+      </section>
+
+      <!-- Month-wise -->
+      <section class="an-section">
+        <div class="an-section__header">
+          <span class="an-section__icon">🗓️</span>
+          <h3 class="an-section__title">Month-wise Seasonal Pattern</h3>
+          <span class="an-section__badge">JUN – AUG</span>
+        </div>
+        <div class="an-chart-card">
+          <div class="an-chart-wrap">
+            <canvas id="monthly-chart"></canvas>
+          </div>
+        </div>
+        <div class="monthly-table-wrap" id="monthly-table-wrap"></div>
+      </section>
+
+    </div>
+
+    <!-- ── HEATMAP + BREAKDOWN ───────────────────────────────── -->
+    <div class="an-two-col">
+
+      <!-- Year × Month heatmap -->
+      <section class="an-section">
+        <div class="an-section__header">
+          <span class="an-section__icon">🗺️</span>
+          <h3 class="an-section__title">Flood Risk Heatmap</h3>
+          <span class="an-section__badge">YEAR × MONTH</span>
+        </div>
+        <div class="an-chart-card">
+          <div class="an-chart-wrap">
+            <canvas id="heatmap-chart"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Land Cover + Soil Type -->
+      <section class="an-section">
+        <div class="an-section__header">
+          <span class="an-section__icon">🌍</span>
+          <h3 class="an-section__title">Land Cover &amp; Soil Type Risk</h3>
+          <span class="an-section__badge">BREAKDOWN</span>
+        </div>
+        <div class="an-two-mini">
+          <div class="an-chart-card an-chart-card--mini">
+            <p class="an-chart-card__sub">Land Cover</p>
+            <div class="an-chart-wrap an-chart-wrap--mini">
+              <canvas id="landcover-chart"></canvas>
+            </div>
+          </div>
+          <div class="an-chart-card an-chart-card--mini">
+            <p class="an-chart-card__sub">Soil Type</p>
+            <div class="an-chart-wrap an-chart-wrap--mini">
+              <canvas id="soiltype-chart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ── PREDICTION TABLE ───────────────────────────────────── -->
+    <section class="an-section">
+      <div class="an-section__header">
+        <span class="an-section__icon">📋</span>
+        <h3 class="an-section__title">Seasonal Forecast Table</h3>
+        <span class="an-section__badge">JUN – AUG ONLY</span>
+      </div>
+      <div class="pred-table-wrap">
+        <table class="pred-table" id="prediction-table">
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Predicted Water Level (m)</th>
+              <th>Predicted Rainfall (mm)</th>
+              <th>Flood Risk %</th>
+              <th>Risk Level</th>
+            </tr>
+          </thead>
+          <tbody id="prediction-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── SIGNIFICANT RAINFALL EVENTS WITH DATE & TIME ────────── -->
+    <section class="an-section" aria-label="Rainfall Events Date and Time Registry">
+      <div class="an-section__header">
+        <span class="an-section__icon">🌧️</span>
+        <h3 class="an-section__title">Significant Rainfall Events (Date &amp; Time Registry)</h3>
+        <span class="an-section__badge">TEMPORAL LOG</span>
+      </div>
+      <div class="rain-table-container">
+        <table class="rain-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>📅 Event Date</th>
+              <th>⏰ Peak Rain Time</th>
+              <th>🌧️ Rainfall (mm)</th>
+              <th>Associated Water Level (m)</th>
+              <th>Intensity</th>
+              <th>Flood Status</th>
+            </tr>
+          </thead>
+          <tbody id="analytics-rain-events-tbody">
+            <tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1rem;">Loading historical rainfall date and time records...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ════════════════════════════════════════════
+       FOOTER
+  ════════════════════════════════════════════ -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <span>Dataset: <strong>flood_risk_dataset_india.csv</strong> (11,800 records)</span>
+      <span>Model: <strong>Linear Regression (scikit-learn)</strong></span>
+      <span>AquaAlert v1.0</span>
+      <span><a href="/dashboard" class="footer-link">← Live Dashboard</a></span>
+    </div>
+  </footer>
+
+  <script src="/static/analytics.js"></script>
+</body>
+</html>

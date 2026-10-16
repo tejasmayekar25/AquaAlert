@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AquaAlert — About &amp; Architecture</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+
+  <!-- ════════════════════════════════════════
+       HEADER
+  ════════════════════════════════════════ -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <span class="header-icon">🌊</span>
+        <div class="header-text">
+          <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <h1 class="header-title">AquaAlert</h1>
+            <span style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.65rem; font-weight: 700; padding: 0.15rem 0.55rem; border-radius: 9999px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); letter-spacing: 0.04em;">
+              DOCS &amp; SPECS
+            </span>
+          </div>
+          <p class="header-subtitle">Architecture &amp; System Specifications</p>
+        </div>
+      </div>
+      <nav class="header-nav">
+        <a href="/"                class="nav-link">🏠 Home</a>
+        <a href="/dashboard"       class="nav-link">📊 Dashboard</a>
+        <a href="/mumbai-drainage" class="nav-link" style="color: #60a5fa; font-weight: 700;">🌧️ Mumbai Drainage</a>
+        <a href="/analytics"       class="nav-link">🔮 Analytics</a>
+        <a href="/about"           class="nav-link nav-link--active">ℹ️ About</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ════════════════════════════════════════
+       MAIN CONTENT
+  ════════════════════════════════════════ -->
+  <main class="about-content">
+
+    <section class="about-hero">
+      <div class="about-hero__icon">🌊</div>
+      <h2 class="about-hero__title">AquaAlert Architecture</h2>
+      <p class="about-hero__tagline">Autonomous IoT Waterlogging Detection &amp; Early Warning System</p>
+      <p class="about-hero__desc">
+        AquaAlert is an end-to-end flood monitoring solution designed to detect rising water levels, trigger instant local alarms,
+        and visualize risk patterns in real time through an integrated telemetry console and geospatial analytics engine.
+      </p>
+    </section>
+
+    <section class="about-section">
+      <h3 class="about-section__title">📌 Project Purpose</h3>
+      <div class="about-cards">
+        <div class="about-card">
+          <div class="about-card__icon">🎯</div>
+          <h4 class="about-card__title">The Problem</h4>
+          <p class="about-card__body">
+            Urban waterlogging and sudden drainage overflows frequently paralyze transit corridors before municipal authorities can react. Manual inspections during severe downpours are hazardous and slow.
+          </p>
+        </div>
+
+        <div class="about-card">
+          <div class="about-card__icon">💡</div>
+          <h4 class="about-card__title">The Solution</h4>
+          <p class="about-card__body">
+            AquaAlert uses ruggedized ultrasonic sensors to continuously measure water air gaps, derives percentage-based overflow risk, and triggers local buzzer alarms while streaming data to Flask and SQLite.
+          </p>
+        </div>
+
+        <div class="about-card">
+          <div class="about-card__icon">⚡</div>
+          <h4 class="about-card__title">Key Capabilities</h4>
+          <ul class="about-card__list">
+            <li>• Sub-second ultrasonic distance sampling</li>
+            <li>• Canonical server-side risk state calculation</li>
+            <li>• WebSocket broadcasting via Flask-SocketIO</li>
+            <li>• SQLite historical logging &amp; crash resilience</li>
+            <li>• India geospatial flood dataset forecasting</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="about-section">
+      <h3 class="about-section__title">⚙️ Data Flow &amp; Lifecycle</h3>
+      <div class="flow-steps">
+        <div class="flow-step">
+          <div class="flow-step__num">1</div>
+          <div class="flow-step__body">
+            <h4>Sense</h4>
+            <p>The AJ-SR04M waterproof ultrasonic transducer emits a 40 kHz pulse to measure the distance to the water surface.</p>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-step__num">2</div>
+          <div class="flow-step__body">
+            <h4>Process &amp; Display</h4>
+            <p>The ESP32 calculates depth and risk percentage, updating the local 16x2 I2C LCD and triggering GPIO LEDs and buzzer alert patterns.</p>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-step__num">3</div>
+          <div class="flow-step__body">
+            <h4>Ingest &amp; Validate</h4>
+            <p>The ESP32 pushes JSON telemetry via HTTP POST to <code>/api/data</code>. The Flask backend validates bounds and recalculates the single source of truth status.</p>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-step__num">4</div>
+          <div class="flow-step__body">
+            <h4>Persist &amp; Broadcast</h4>
+            <p>Readings are recorded to SQLite in WAL mode and broadcast over WebSockets to all connected dashboard clients instantaneously.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="about-section">
+      <h3 class="about-section__title">🚦 Severity Thresholds</h3>
+      <div class="threshold-grid">
+        <div class="threshold-card threshold-card--normal">
+          <div class="threshold-card__pct">0% – 49%</div>
+          <div class="threshold-card__status">NORMAL</div>
+          <div class="threshold-card__desc">Water level is within safe operational capacity.</div>
+          <div class="threshold-card__buzzer">🔕 Silent / Green LED</div>
+        </div>
+
+        <div class="threshold-card threshold-card--warning">
+          <div class="threshold-card__pct">50% – 69%</div>
+          <div class="threshold-card__status">WARNING</div>
+          <div class="threshold-card__desc">Water level is rising; drainage capacity under moderate load.</div>
+          <div class="threshold-card__buzzer">🔔 Periodic Beep / Yellow LED</div>
+        </div>
+
+        <div class="threshold-card threshold-card--high">
+          <div class="threshold-card__pct">70% – 84%</div>
+          <div class="threshold-card__status">HIGH</div>
+          <div class="threshold-card__desc">Water level is near drainage crest; overflow imminent.</div>
+          <div class="threshold-card__buzzer">🔔 Rapid Alert / Red LED</div>
+        </div>
+
+        <div class="threshold-card threshold-card--critical">
+          <div class="threshold-card__pct">85% – 100%</div>
+          <div class="threshold-card__status">CRITICAL</div>
+          <div class="threshold-card__desc">Active overflow hazard; urgent deployment needed.</div>
+          <div class="threshold-card__buzzer">🚨 Continuous Alarm / Flashing Red</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="about-section">
+      <h3 class="about-section__title">🧩 Technology Stack</h3>
+      <div class="tech-grid">
+        <div class="tech-layer">
+          <div class="tech-layer__label">Embedded &amp; Hardware</div>
+          <div class="tech-tags">
+            <span class="tech-tag">ESP32 Dev Module</span>
+            <span class="tech-tag">AJ-SR04M Ultrasonic</span>
+            <span class="tech-tag">16x2 I2C LCD</span>
+            <span class="tech-tag">Active Buzzer</span>
+          </div>
+        </div>
+
+        <div class="tech-layer">
+          <div class="tech-layer__label">Server &amp; Database</div>
+          <div class="tech-tags">
+            <span class="tech-tag">Python 3.11</span>
+            <span class="tech-tag">Flask</span>
+            <span class="tech-tag">Flask-SocketIO</span>
+            <span class="tech-tag">SQLite (WAL)</span>
+          </div>
+        </div>
+
+        <div class="tech-layer">
+          <div class="tech-layer__label">Telemetry &amp; Maps</div>
+          <div class="tech-tags">
+            <span class="tech-tag">Chart.js</span>
+            <span class="tech-tag">Plotly Geo</span>
+            <span class="tech-tag">WebSockets</span>
+            <span class="tech-tag">Responsive CSS</span>
+          </div>
+        </div>
+
+        <div class="tech-layer">
+          <div class="tech-layer__label">Analytics &amp; ML</div>
+          <div class="tech-tags">
+            <span class="tech-tag">Pandas</span>
+            <span class="tech-tag">NumPy</span>
+            <span class="tech-tag">scikit-learn Linear Regression</span>
+            <span class="tech-tag">11,800 India Records</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="about-section">
+      <h3 class="about-section__title">📡 System Snapshot</h3>
+      <div class="info-grid">
+        <div class="info-item"><span class="info-label">Project</span><span class="info-value">AquaAlert</span></div>
+        <div class="info-item"><span class="info-label">Domain</span><span class="info-value">Urban Flood Telemetry</span></div>
+        <div class="info-item"><span class="info-label">Node Identifier</span><span class="info-value mono">AQUA-001</span></div>
+        <div class="info-item"><span class="info-label">Transducer</span><span class="info-value mono">AJ-SR04M Waterproof</span></div>
+        <div class="info-item"><span class="info-label">Storage Engine</span><span class="info-value mono">SQLite WAL</span></div>
+        <div class="info-item"><span class="info-label">Operations Console</span><span class="info-value mono">/dashboard</span></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <span>AquaAlert v1.0</span>
+      <span>Hardware Node: <strong>AQUA-001</strong></span>
+      <span>Local prototype</span>
+      <span><a href="/dashboard" class="footer-link">← Return to Dashboard</a></span>
+    </div>
+  </footer>
+
+</body>
+</html>

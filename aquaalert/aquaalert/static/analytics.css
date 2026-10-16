@@ -1,0 +1,396 @@
+/* ══════════════════════════════════════════════════════════
+   AquaAlert Analytics — Clean & Modern Stylesheet
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Main Layout ────────────────────────────────────────── */
+.analytics-main {
+  flex: 1;
+  padding: 1.5rem;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ── Hero Bar ───────────────────────────────────────────── */
+.analytics-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
+}
+
+.analytics-hero__title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 0.2rem;
+}
+
+.analytics-hero__sub {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.analytics-hero__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.ctrl-label {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.ctrl-select {
+  background: var(--bg-card-subtle);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.ctrl-select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.ctrl-btn {
+  background: rgba(14, 165, 233, 0.12);
+  color: #38bdf8;
+  border: 1px solid rgba(14, 165, 233, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.ctrl-btn:hover {
+  background: rgba(14, 165, 233, 0.22);
+  border-color: #38bdf8;
+}
+
+/* ── Summary Stat Cards ─────────────────────────────────── */
+.an-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.85rem;
+}
+
+.an-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-card);
+  padding: 1rem 0.85rem;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.an-stat-card:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-card-hover);
+}
+
+.an-stat-card__icon {
+  font-size: 1.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.an-stat-card__value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.2rem;
+}
+
+.an-stat-card--flood .an-stat-card__value { color: #38bdf8; }
+.an-stat-card--risk  .an-stat-card__value { color: var(--high-orange); }
+.an-stat-card--water .an-stat-card__value { color: var(--normal-green); }
+.an-stat-card--rain  .an-stat-card__value { color: #a855f7; }
+
+.an-stat-card__label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+/* ── Section Wrapper ────────────────────────────────────── */
+.an-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.an-section__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.an-section__icon  { font-size: 1rem; }
+.an-section__title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #fff;
+  flex: 1;
+}
+
+.an-section__badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #38bdf8;
+  background: rgba(14, 165, 233, 0.1);
+  border: 1px solid rgba(14, 165, 233, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.5rem;
+  white-space: nowrap;
+}
+
+/* ── Sensor Water Level Telemetry Section ──────────────── */
+.sensor-analysis-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-card);
+  padding: 1.25rem 1.5rem;
+}
+
+.sensor-stat-grid {
+  margin-bottom: 1rem;
+}
+
+.an-chart-header-mini {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+#sensor-sync-badge {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* ── Chart Cards ────────────────────────────────────────── */
+.an-chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-card);
+  padding: 1.15rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.an-chart-card--full { width: 100%; }
+.an-chart-card--mini { flex: 1; }
+.an-chart-card__sub  {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 0.65rem;
+}
+
+.an-chart-wrap         { position: relative; height: 260px; background: var(--bg-card-subtle); border-radius: var(--radius-sm); padding: 0.4rem; }
+.an-chart-wrap--tall   { height: 320px; }
+.an-chart-wrap--mini   { height: 200px; }
+.an-chart-wrap canvas  { width: 100% !important; height: 100% !important; }
+
+/* ── Legend ─────────────────────────────────────────────── */
+.an-chart-legend {
+  display: flex;
+  gap: 1.25rem;
+  margin-bottom: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.leg-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+
+.leg-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Model Info Bar ─────────────────────────────────────── */
+.model-info {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.model-info-item {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.model-info-item strong {
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ── Two Column Layout ──────────────────────────────────── */
+.an-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.an-two-mini {
+  display: flex;
+  gap: 1rem;
+}
+
+/* ── Data Tables ────────────────────────────────────────── */
+.yearly-table-wrap,
+.monthly-table-wrap,
+.pred-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.data-table,
+.pred-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.data-table thead,
+.pred-table thead {
+  background: var(--bg-card-subtle);
+}
+
+.data-table th,
+.pred-table th {
+  padding: 0.55rem 0.85rem;
+  text-align: left;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.data-table td,
+.pred-table td {
+  padding: 0.55rem 0.85rem;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.data-table tr:hover td,
+.pred-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+  color: #fff;
+}
+
+.data-table .badge.badge--normal,
+.pred-table .risk-badge.badge--normal {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+}
+
+.data-table .badge.badge--warning,
+.data-table .badge.badge--moderate,
+.pred-table .risk-badge.badge--warning,
+.pred-table .risk-badge.badge--moderate {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+}
+
+.data-table .badge.badge--high,
+.pred-table .risk-badge.badge--high {
+  background: rgba(249, 115, 22, 0.12);
+  color: #fb923c;
+}
+
+.data-table .badge.badge--critical,
+.pred-table .risk-badge.badge--critical {
+  background: rgba(239, 68, 68, 0.14);
+  color: #f87171;
+}
+
+.pred-table .risk-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+/* Loading state */
+.loading-msg {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 1200px) {
+  .an-stat-grid { grid-template-columns: repeat(3, 1fr); }
+  .an-two-col { grid-template-columns: 1fr; }
+  .an-two-mini { flex-direction: column; }
+}
+
+@media (max-width: 768px) {
+  .analytics-main { padding: 1rem; }
+  .an-stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .analytics-hero { flex-direction: column; align-items: flex-start; }
+}

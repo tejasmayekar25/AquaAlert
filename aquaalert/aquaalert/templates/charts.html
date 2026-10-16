@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AquaAlert — Operations Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <script src="/static/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+  <!-- ════════════════════════════════════════
+       HEADER
+  ════════════════════════════════════════ -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <span class="header-icon">🌊</span>
+        <div class="header-text">
+          <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <h1 class="header-title">AquaAlert</h1>
+            <span style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.65rem; font-weight: 700; padding: 0.15rem 0.55rem; border-radius: 9999px; background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); letter-spacing: 0.04em;">
+              <span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 6px #10b981;"></span>
+              LIVE CONSOLE
+            </span>
+          </div>
+          <p class="header-subtitle">Real-Time Drainage Telemetry &amp; Early Warning System</p>
+        </div>
+      </div>
+      <nav class="header-nav">
+        <a href="/"                class="nav-link">🏠 Home</a>
+        <a href="/dashboard"       class="nav-link nav-link--active">📊 Dashboard</a>
+        <a href="/mumbai-drainage" class="nav-link" style="color: #60a5fa; font-weight: 700;">🌧️ Mumbai Drainage</a>
+        <a href="/analytics"       class="nav-link">🔮 Analytics</a>
+        <a href="/about"           class="nav-link">ℹ️ About</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ════════════════════════════════════════
+       MAIN CONTENT
+  ════════════════════════════════════════ -->
+  <main class="main-content">
+
+    <!-- Alert Banner -->
+    <div id="alert-banner" class="alert-banner hidden" role="alert" aria-live="assertive">
+      <span class="alert-icon" id="alert-icon">⚠</span>
+      <span id="alert-message">Alert</span>
+    </div>
+
+    <!-- Live Telemetry Stat Cards -->
+    <section class="stat-grid stat-grid--top" aria-label="Live Telemetry">
+      <div class="stat-card">
+        <div class="stat-card__label">ESP32 Status</div>
+        <div class="stat-card__value stat-card__value--device">
+          <span class="status-dot dot--offline" id="status-dot"></span>
+          <span id="esp32-status">CONNECTING...</span>
+        </div>
+      </div>
+
+      <div class="stat-card stat-card--featured">
+        <div class="stat-card__label">Water Level Percentage</div>
+        <div class="stat-card__value stat-card__value--big" id="water-percentage">--%</div>
+        <div class="stat-progress-bar">
+          <div class="stat-progress-fill" id="water-progress-fill"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: var(--text-muted); font-family: var(--font-mono); margin-top: 0.25rem;">
+          <span>0%</span>
+          <span>50% (Warn)</span>
+          <span>70% (High)</span>
+          <span>85%+ (Crit)</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-card__label">Distance to Water</div>
+        <div class="stat-card__value" id="water-distance">-- cm</div>
+      </div>
+    </section>
+
+    <section class="stat-grid stat-grid--info" aria-label="Measurements and Node Info">
+      <div class="stat-card">
+        <div class="stat-card__label">Water Depth (Calculated)</div>
+        <div class="stat-card__value" id="water-level-cm">-- cm</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-card__label">Current Status</div>
+        <div class="stat-card__value">
+          <span class="status-badge badge--warning" id="water-status">OFFLINE</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-card__label">Device Node ID</div>
+        <div class="stat-card__value stat-card__value--mono" id="device-id">AQUA-001</div>
+      </div>
+    </section>
+
+    <!-- ── Live Weather & Rain Telemetry ───────────────── -->
+    <section class="stat-grid--weather" aria-label="Live Weather & Rain Telemetry">
+      <!-- Live Weather API Card -->
+      <div class="stat-card stat-card--weather-main">
+        <div class="weather-card-header">
+          <div class="weather-header-left">
+            <span class="weather-main-icon" id="weather-icon">⛅</span>
+            <div>
+              <div class="weather-title-group">
+                <h3 class="weather-city-name" id="weather-city-display">Mumbai Weather</h3>
+                <span class="weather-badge" id="weather-source-badge">LIVE API</span>
+              </div>
+              <p class="weather-condition-text" id="weather-condition">Loading local meteorological data...</p>
+            </div>
+          </div>
+          <div class="weather-header-right">
+            <select id="weather-area-select" class="weather-select" aria-label="Select Area or Ward">
+              <optgroup label="🌊 Mumbai Local Areas &amp; Flood Wards">
+                <option value="mumbai_dadar" selected>📍 Dadar (Hindmata / TT Circle)</option>
+                <option value="mumbai_kurla">📍 Kurla (Kamani / LBS Marg)</option>
+                <option value="mumbai_andheri">📍 Andheri (Subway / SV Road)</option>
+                <option value="mumbai_bandra">📍 Bandra (Milan Subway / SV Rd)</option>
+                <option value="mumbai_sion">📍 Sion (King's Circle / Gandhi Market)</option>
+                <option value="mumbai_santacruz">📍 Santacruz (Airport AWS / Vakola)</option>
+                <option value="mumbai_colaba">📍 Colaba (Cuffe Parade &amp; Fort)</option>
+                <option value="mumbai_chembur">📍 Chembur (Postal Colony / Shell)</option>
+                <option value="mumbai_powai">📍 Powai (Lake Basin / Hiranandani)</option>
+                <option value="mumbai_borivali">📍 Borivali (Link Road / Dahisar)</option>
+                <option value="mumbai_thane">📍 Thane (Majiwada / Ghodbunder)</option>
+                <option value="mumbai_navi_mumbai">📍 Navi Mumbai (Vashi / Nerul)</option>
+              </optgroup>
+              <optgroup label="🏙️ Pune Local Areas">
+                <option value="pune_hinjewadi">📍 Hinjewadi (IT Park Phase 1-3)</option>
+                <option value="pune_shivajinagar">📍 Shivaji Nagar (Mutha Riverbed)</option>
+                <option value="pune_kothrud">📍 Kothrud (Karve Road)</option>
+                <option value="pune_vimannagar">📍 Viman Nagar (Airport)</option>
+              </optgroup>
+              <optgroup label="🏙️ Delhi NCR Local Areas">
+                <option value="delhi_ito">📍 ITO &amp; Vikas Marg (Ring Road)</option>
+                <option value="delhi_kashmeregate">📍 Kashmere Gate &amp; ISBT</option>
+                <option value="delhi_mintobridge">📍 Minto Bridge Underpass</option>
+                <option value="delhi_gurugram">📍 Gurugram (Cyber Hub / Hero Honda)</option>
+              </optgroup>
+              <optgroup label="🏙️ Bengaluru Tech Corridors">
+                <option value="blr_silkboard">📍 Silk Board &amp; HSR Layout</option>
+                <option value="blr_bellandur">📍 Bellandur &amp; EcoSpace (ORR)</option>
+                <option value="blr_whitefield">📍 Whitefield (ITPL &amp; Hopefarm)</option>
+              </optgroup>
+              <optgroup label="🏙️ Chennai Coastal Areas">
+                <option value="chn_velachery">📍 Velachery &amp; Madipakkam</option>
+                <option value="chn_tnagar">📍 T Nagar (Usman Road)</option>
+              </optgroup>
+              <optgroup label="🇮🇳 Metro Cities Overview">
+                <option value="Mumbai">🏙️ Mumbai City Center</option>
+                <option value="Pune">🏙️ Pune City Center</option>
+                <option value="New Delhi">🏙️ New Delhi (NCR)</option>
+                <option value="Bengaluru">🏙️ Bengaluru Center</option>
+                <option value="Chennai">🏙️ Chennai Center</option>
+                <option value="Kolkata">🏙️ Kolkata Center</option>
+                <option value="Hyderabad">🏙️ Hyderabad Center</option>
+                <option value="Ahmedabad">🏙️ Ahmedabad Center</option>
+              </optgroup>
+            </select>
+            <button type="button" id="btn-gps-area" class="btn-weather-action" title="Detect Weather at My Current Area (GPS)">📍 GPS</button>
+            <button type="button" id="btn-refresh-weather" class="btn-weather-refresh" title="Refresh Live Weather">🔄</button>
+          </div>
+        </div>
+
+        <!-- Custom Area Quick Search Bar -->
+        <div class="weather-search-bar">
+          <input type="text" id="weather-area-search" class="weather-search-input" placeholder="🔍 Type any area, locality, or landmark (e.g. Hindmata, Kurla, Hinjewadi, Whitefield)..." aria-label="Search area weather"/>
+          <button type="button" id="btn-search-area" class="btn-search-submit">Search Area</button>
+        </div>
+
+        <div class="weather-metrics-grid">
+          <div class="weather-metric">
+            <span class="weather-metric__label">🌡️ Temperature</span>
+            <span class="weather-metric__val" id="weather-temp">--°C</span>
+            <span class="weather-metric__sub" id="weather-feels">Feels like --°C</span>
+          </div>
+          <div class="weather-metric">
+            <span class="weather-metric__label">💧 Humidity</span>
+            <span class="weather-metric__val" id="weather-humidity">--%</span>
+            <span class="weather-metric__sub">Relative air moisture</span>
+          </div>
+          <div class="weather-metric">
+            <span class="weather-metric__label">🌧️ Precipitation Rate</span>
+            <span class="weather-metric__val" id="weather-rain-rate">-- mm/h</span>
+            <span class="weather-metric__sub" id="weather-rain-category">Assessing load...</span>
+          </div>
+          <div class="weather-metric">
+            <span class="weather-metric__label">💨 Wind Speed</span>
+            <span class="weather-metric__val" id="weather-wind">-- km/h</span>
+            <span class="weather-metric__sub" id="weather-pressure">1010 hPa</span>
+          </div>
+        </div>
+
+        <!-- Flood Impact Assessment Alert -->
+        <div class="weather-flood-banner" id="weather-flood-alert">
+          <span class="flood-alert-icon">⚠️</span>
+          <div class="flood-alert-body">
+            <strong id="weather-flood-risk">FLOOD RISK: NORMAL</strong>
+            <span id="weather-flood-desc">Standard drainage discharge rate nominal.</span>
+          </div>
+        </div>
+
+        <!-- Hourly Mini Forecast -->
+        <div class="weather-hourly-wrap">
+          <div class="weather-hourly-title">12-HOUR PRECIPITATION &amp; TEMPERATURE OUTLOOK</div>
+          <div class="weather-hourly-strip" id="weather-hourly-strip">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Live ESP32 Rain & Clock Telemetry -->
+      <div class="weather-side-cards">
+        <div class="stat-card stat-card--rain">
+          <div class="rain-icon-title">
+            <span>🌧️ Cumulative Rainfall</span>
+          </div>
+          <div class="stat-card__value" id="rain-amount" style="font-size: 1.8rem; margin: 0.35rem 0;">
+            0.0 mm
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span class="rain-status-badge rain-status-badge--clear" id="rain-status-badge">No Rain</span>
+            <span class="rain-subtext" id="rain-sensor-source">Sensor / Node</span>
+          </div>
+        </div>
+
+        <div class="stat-card stat-card--rain">
+          <div class="rain-icon-title">
+            <span>📅 Last Rain Date &amp; Time</span>
+          </div>
+          <div>
+            <span class="rain-datetime-chip" id="last-rain-datetime-chip">
+              <span style="font-size: 0.85rem;">⏰</span> <span id="last-rain-datetime-text">Loading...</span>
+            </span>
+          </div>
+          <p class="rain-subtext">Most recent rainfall event recorded</p>
+        </div>
+
+        <div class="stat-card stat-card--rain">
+          <div class="rain-icon-title">
+            <span>⏱️ Live Telemetry Clock</span>
+          </div>
+          <div>
+            <span class="rain-datetime-chip" style="color: #a7f3d0; background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.25);">
+              <span>🕒</span> <span id="live-clock-text">--:--:--</span>
+            </span>
+          </div>
+          <p class="rain-subtext" id="live-date-text">Synchronized Local Time</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Arabian Sea High / Low Tide Telemetry ───────────────── -->
+    <section class="sea-tide-section" aria-label="Arabian Sea High and Low Tide Telemetry">
+      <div class="stat-card stat-card--tide">
+        <!-- Tide Card Header -->
+        <div class="tide-header">
+          <div class="tide-header-left">
+            <span class="tide-main-icon">🌊</span>
+            <div>
+              <div class="tide-title-row">
+                <h3 class="tide-title">Arabian Sea Tide &amp; Coastal Sluice Gates</h3>
+                <span class="tide-zone-pill" id="tide-coast-label">Mumbai Coastline</span>
+              </div>
+              <p class="tide-subtitle">High Tide / Low Tide Cycle • Spring Surge Lockout (4.50m) • BMC Coastal Storm Outfalls</p>
+            </div>
+          </div>
+          <div class="tide-header-right">
+            <span class="tide-gate-badge gate-locked" id="tide-gate-badge">GATES LOCKED (>4.5m)</span>
+            <button type="button" id="btn-refresh-tide" class="btn-weather-refresh" title="Refresh Live Sea Tide Telemetry">🔄</button>
+          </div>
+        </div>
+
+        <!-- Tide Key Metrics Row -->
+        <div class="tide-metrics-grid">
+          <!-- Metric 1: Current Sea Level -->
+          <div class="tide-metric tide-metric--primary">
+            <span class="tide-metric-label">🌊 Current Sea Level</span>
+            <div class="tide-metric-main">
+              <span class="tide-height-val" id="tide-height-val">4.62</span>
+              <span class="tide-unit">m</span>
+            </div>
+            <span class="tide-metric-sub" id="tide-gauge-sub">Critical: +0.12m above 4.50m Lockout</span>
+          </div>
+
+          <!-- Metric 2: Tidal Phase -->
+          <div class="tide-metric">
+            <span class="tide-metric-label">⚡ Tide Phase</span>
+            <div class="tide-phase-tag" id="tide-phase-badge">🌊 HIGH TIDE SURGE</div>
+            <span class="tide-metric-sub" id="tide-phase-desc">Gravity outfalls prevented by sea backflow</span>
+          </div>
+
+          <!-- Metric 3: Peak High Tide Today -->
+          <div class="tide-metric">
+            <span class="tide-metric-label">🌊 Peak High Tide Today</span>
+            <div class="tide-time-val" id="tide-peak-time">14:48 IST</div>
+            <span class="tide-metric-sub" id="tide-peak-height">Height: 4.62m (Spring Peak)</span>
+          </div>
+
+          <!-- Metric 4: Next Low Tide -->
+          <div class="tide-metric">
+            <span class="tide-metric-label">🔻 Next Low Tide (Ebb)</span>
+            <div class="tide-time-val" id="tide-next-low">20:30 IST</div>
+            <span class="tide-metric-sub" id="tide-next-low-height">Height: 1.10m (Gravity Outflow)</span>
+          </div>
+        </div>
+
+        <!-- Dynamic Visual Sea Level & Spring Surge Gauge -->
+        <div class="tide-gauge-wrapper">
+          <div class="tide-gauge-labels">
+            <span>0.0 m (Lowest Ebb)</span>
+            <span>1.5 m (Low Tide)</span>
+            <span>3.0 m (MSL)</span>
+            <span class="gauge-mark-danger">4.5 m (🚨 Spring Lockout)</span>
+            <span>5.5 m (Max Surge)</span>
+          </div>
+          <div class="tide-gauge-track">
+            <div class="tide-gauge-safe-zone"></div>
+            <div class="tide-gauge-danger-line" title="Spring Tide Gate Lockout: 4.50m"></div>
+            <div class="tide-gauge-fill" id="tide-gauge-fill" style="width: 84%;">
+              <span class="tide-gauge-needle" id="tide-gauge-needle">🌊 4.62m</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4-Point Tide Schedule Grid -->
+        <div class="tide-schedule-wrap">
+          <div class="tide-schedule-title">📅 24-HOUR HIGH TIDE &amp; LOW TIDE CYCLE</div>
+          <div class="tide-schedule-grid" id="tide-schedule-strip">
+            <div class="tide-event-card past" id="tide-event-1">
+              <div class="tide-event-icon">🌅</div>
+              <div class="tide-event-info">
+                <span class="tide-event-label">Morning Low Tide</span>
+                <strong class="tide-event-time" id="tide-ev1-time">08:20 IST</strong>
+                <span class="tide-event-level" id="tide-ev1-level">1.35 m</span>
+              </div>
+              <span class="tide-event-status past">Past</span>
+            </div>
+            <div class="tide-event-card active-surge" id="tide-event-2">
+              <div class="tide-event-icon">🌊</div>
+              <div class="tide-event-info">
+                <span class="tide-event-label">Spring High Tide</span>
+                <strong class="tide-event-time" id="tide-ev2-time">14:48 IST</strong>
+                <span class="tide-event-level" id="tide-ev2-level">4.62 m (Surge)</span>
+              </div>
+              <span class="tide-event-status active">Active Peak</span>
+            </div>
+            <div class="tide-event-card upcoming" id="tide-event-3">
+              <div class="tide-event-icon">🌙</div>
+              <div class="tide-event-info">
+                <span class="tide-event-label">Evening Low Tide</span>
+                <strong class="tide-event-time" id="tide-ev3-time">20:30 IST</strong>
+                <span class="tide-event-level" id="tide-ev3-level">1.10 m</span>
+              </div>
+              <span class="tide-event-status upcoming">Upcoming</span>
+            </div>
+            <div class="tide-event-card upcoming" id="tide-event-4">
+              <div class="tide-event-icon">🌌</div>
+              <div class="tide-event-info">
+                <span class="tide-event-label">Night High Tide</span>
+                <strong class="tide-event-time" id="tide-ev4-time">03:15 IST</strong>
+                <span class="tide-event-level" id="tide-ev4-level">3.92 m</span>
+              </div>
+              <span class="tide-event-status upcoming">Tomorrow</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coastal Storm Outfalls & Sluice Gate Monitor -->
+        <div class="tide-outfalls-wrap">
+          <div class="tide-outfalls-header">
+            <span>🛡️ COASTAL OUTFALL SLUICE GATES &amp; DEWATERING STATUS</span>
+            <span class="tide-outfalls-sub">Sea surge prevention for low-lying city basins</span>
+          </div>
+          <div class="tide-outfalls-grid" id="tide-outfalls-grid">
+            <div class="outfall-pill locked">
+              <span class="outfall-dot"></span>
+              <span class="outfall-name">Britannia (Hindmata)</span>
+              <span class="outfall-status">LOCKED • Pumps 100%</span>
+            </div>
+            <div class="outfall-pill locked">
+              <span class="outfall-dot"></span>
+              <span class="outfall-name">Love Grove (Worli)</span>
+              <span class="outfall-status">LOCKED • Pumps 100%</span>
+            </div>
+            <div class="outfall-pill locked">
+              <span class="outfall-dot"></span>
+              <span class="outfall-name">Cleveland Bunder</span>
+              <span class="outfall-status">LOCKED • Pumps 95%</span>
+            </div>
+            <div class="outfall-pill locked">
+              <span class="outfall-dot"></span>
+              <span class="outfall-name">Haji Ali Outfall</span>
+              <span class="outfall-status">LOCKED • Pumps 90%</span>
+            </div>
+            <div class="outfall-pill locked">
+              <span class="outfall-dot"></span>
+              <span class="outfall-name">Gazdarbandh (Khar)</span>
+              <span class="outfall-status">LOCKED • Pumps 100%</span>
+            </div>
+            <div class="outfall-pill locked">
+              <span class="outfall-dot"></span>
+              <span class="outfall-name">Mahim Causeway Sluice</span>
+              <span class="outfall-status">SURGE LOCK • Pumps 100%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Real-Time Tidal Impact Advisory Banner -->
+        <div class="tide-advisory-banner" id="tide-advisory-banner">
+          <span class="tide-advisory-icon">⚠️</span>
+          <div class="tide-advisory-text" id="tide-advisory-text">
+            Arabian Sea high tide exceeds 4.50m spring threshold. All 45 coastal gravity outfalls locked by sea surge. BMC dewatering pumping stations (Britannia, Love Grove, Cleveland Bunder, Haji Ali, Gazdarbandh) operating at 100% capacity.
+          </div>
+        </div>
+
+        <!-- Interactive Tide Simulator Toolbar -->
+        <div class="tide-sim-toolbar">
+          <span class="tide-sim-label">⚡ Test Ocean Tide Scenarios:</span>
+          <div class="tide-sim-buttons">
+            <button type="button" class="btn-tide-sim" id="btn-tide-surge" data-scenario="high_tide_surge" title="Simulate 4.88m Spring High Tide Surge with Outfall Lock">
+              🌊 Spring Surge (4.88m)
+            </button>
+            <button type="button" class="btn-tide-sim" id="btn-tide-high" data-scenario="high_tide_normal" title="Simulate 4.25m High Tide">
+              🌊 High Tide (4.25m)
+            </button>
+            <button type="button" class="btn-tide-sim" id="btn-tide-low" data-scenario="low_tide" title="Simulate 1.15m Low Tide Ebb (Full Gravity Discharge)">
+              🔻 Low Tide (1.15m)
+            </button>
+            <button type="button" class="btn-tide-sim" id="btn-tide-normal" data-scenario="normal" title="Simulate Mean Sea Level (2.50m)">
+              ⚖️ Normal / MSL (2.50m)
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ESP32 Hardware Telemetry & Actuator Panel (16x2 I2C LCD & GPIO Indicators) -->
+    <section class="hardware-led-panel" aria-label="ESP32 Hardware Indicators">
+      <div class="led-panel-header">
+        <div class="led-panel-title">
+          <span>📟 Hardware Telemetry &amp; Actuators (ESP32 Dev Module)</span>
+          <span class="hardware-node-badge">IP: 192.168.37.173 • Node: AQUA-001</span>
+        </div>
+        <div class="sensor-quick-stats">
+          <span class="quick-stat">Min: <strong id="quick-min">-- cm</strong></span>
+          <span class="quick-stat">Max: <strong id="quick-max">-- cm</strong></span>
+          <span class="quick-stat">Avg: <strong id="quick-avg">-- cm</strong></span>
+          <span class="quick-stat">Trend: <strong id="quick-trend">--</strong></span>
+        </div>
+      </div>
+
+      <!-- Interactive Hardware Simulator & Live Stream Controller -->
+      <div class="hardware-sim-toolbar" aria-label="Hardware Simulation Controls">
+        <div class="sim-toolbar-left">
+          <button type="button" id="btn-toggle-live-sim" class="btn-sim-stream active" title="Toggle real-time continuous sensor data stream">
+            <span class="stream-pulse-dot"></span>
+            <span id="stream-btn-text">📡 Live Telemetry Stream: ACTIVE (1.5s)</span>
+          </button>
+          <span class="sim-mode-tag" id="sim-source-tag">Source: Auto Stream</span>
+        </div>
+
+        <div class="sim-toolbar-slider-group">
+          <label for="sim-water-slider" class="sim-slider-label">
+            <span>Live Water Level Test:</span>
+            <strong id="sim-slider-val">55% (55 cm)</strong>
+          </label>
+          <input type="range" id="sim-water-slider" min="0" max="100" value="55" step="1" class="sim-slider" title="Drag to test any water level and watch LCD, LEDs, and charts update live!"/>
+        </div>
+
+        <div class="sim-toolbar-presets">
+          <button type="button" class="btn-preset btn-preset--normal" data-val="35" title="Test Normal water level (<50%)">🌊 35% Normal</button>
+          <button type="button" class="btn-preset btn-preset--warning" data-val="58" title="Test Warning water level (50-69%)">⚠️ 58% Warn</button>
+          <button type="button" class="btn-preset btn-preset--high" data-val="75" title="Test High water level (70-84%)">🔶 75% High</button>
+          <button type="button" class="btn-preset btn-preset--critical" data-val="92" title="Test Critical water level (85-100%)">🚨 92% Crit</button>
+        </div>
+      </div>
+
+      <div class="hardware-main-grid">
+        <!-- Virtual 16x2 I2C LCD Display Module (Authentic HD44780 + PCF8574 Backpack) -->
+        <div class="hardware-lcd-module lcd-theme--blue" id="lcd-hardware-module">
+          <!-- 4 Corner PCB Mounting Screws -->
+          <div class="pcb-screw screw--tl" title="Mounting Hole M3"></div>
+          <div class="pcb-screw screw--tr" title="Mounting Hole M3"></div>
+          <div class="pcb-screw screw--bl" title="Mounting Hole M3"></div>
+          <div class="pcb-screw screw--br" title="Mounting Hole M3"></div>
+
+          <div class="lcd-header">
+            <div class="lcd-header-left">
+              <span class="lcd-icon">📟</span>
+              <div>
+                <div class="lcd-title">16×2 I2C CHARACTER LCD</div>
+                <div class="lcd-silkscreen-pinout">HD44780 • I2C 0x27 (SDA: GPIO 21 • SCL: GPIO 22)</div>
+              </div>
+            </div>
+            <div class="lcd-header-right">
+              <!-- Backlight Theme Switcher -->
+              <div class="lcd-theme-toggles">
+                <button type="button" class="btn-lcd-theme active" id="btn-theme-blue" title="Classic Blue Backlight (White on Blue)">🟦 Blue</button>
+                <button type="button" class="btn-lcd-theme" id="btn-theme-green" title="Retro Yellow-Green Backlight (Black on Green)">🟩 Green</button>
+              </div>
+              <span class="lcd-status-dot dot--online" id="lcd-status-dot"></span>
+              <span class="lcd-live-badge" id="lcd-sync-badge">LIVE STREAM</span>
+            </div>
+          </div>
+
+          <!-- LCD Bezel with authentic recessed metal frame & glass -->
+          <div class="lcd-bezel">
+            <div class="lcd-screen-glass" id="lcd-screen-glass">
+              <div class="lcd-scanlines"></div>
+
+              <!-- Row 1: 16 discrete character cells -->
+              <div class="lcd-row" id="lcd-row-1" aria-label="LCD Row 1"></div>
+
+              <!-- Row 2: 16 discrete character cells -->
+              <div class="lcd-row" id="lcd-row-2" aria-label="LCD Row 2"></div>
+
+              <!-- Backward compatibility elements for element queries & tests -->
+              <div class="visually-hidden" id="lcd-line-1">AQUAALERT   --% </div>
+              <div class="visually-hidden" id="lcd-line-2">--cm     OFFLINE</div>
+            </div>
+          </div>
+
+          <div class="lcd-footer">
+            <div class="lcd-silkscreen-labels">
+              <span>VSS VDD V0 RS RW E D0 D1 D2 D3 D4 D5 D6 D7 A K</span>
+            </div>
+            <span id="lcd-subtext" class="lcd-mode-indicator">⚡ Live Telemetry Stream</span>
+          </div>
+        </div>
+
+        <!-- Hardware Actuators: GPIO Status LEDs & Buzzer -->
+        <div class="hardware-actuators-module">
+          <div class="actuators-header">
+            <span class="actuators-title">💡 GPIO STATUS INDICATORS</span>
+            <span class="actuators-sub">ESP32 Pin Routing</span>
+          </div>
+          <div class="led-indicators-group">
+            <div class="hardware-led" id="hw-led-green">
+              <span class="led-lamp led--green"></span>
+              <div class="led-info">
+                <span class="led-name">NORMAL</span>
+                <span class="led-pin">GPIO 27 (&lt;50%)</span>
+              </div>
+            </div>
+            <div class="hardware-led" id="hw-led-yellow">
+              <span class="led-lamp led--yellow"></span>
+              <div class="led-info">
+                <span class="led-name">WARNING</span>
+                <span class="led-pin">GPIO 26 (50–69%)</span>
+              </div>
+            </div>
+            <div class="hardware-led" id="hw-led-red">
+              <span class="led-lamp led--red"></span>
+              <div class="led-info">
+                <span class="led-name">HIGH / CRITICAL</span>
+                <span class="led-pin">GPIO 25 (≥70%)</span>
+              </div>
+            </div>
+          </div>
+          <div class="buzzer-status-pill">
+            <span class="buzzer-icon" id="buzzer-icon">🔊</span>
+            <span class="buzzer-info" id="buzzer-info-text">Passive Piezo Buzzer • <strong>GPIO 32</strong> (Silent &lt;70% • Pulsed 70–84% • Continuous ≥85%)</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dashboard Controls Toolbar -->
+    <div class="dashboard-controls" aria-label="Dashboard filters">
+      <label for="dashboard-year">Year Filter:</label>
+      <select id="dashboard-year">
+        <option value="all">All years</option>
+      </select>
+      <label for="dashboard-horizon">Forecast Horizon:</label>
+      <select id="dashboard-horizon">
+        <option value="6">Next 2 seasons</option>
+        <option value="12" selected>Next 4 seasons</option>
+        <option value="18">Next 6 seasons</option>
+        <option value="24">Next 8 seasons</option>
+      </select>
+    </div>
+
+    <!-- Charts Grid -->
+    <section class="charts-grid" aria-label="Telemetry and Trend Charts">
+      <div class="chart-card chart-card--live">
+        <div class="chart-card__header" style="flex-wrap: wrap; gap: 0.5rem;">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-size: 1.25rem;">📈</span>
+            <div>
+              <h2 class="chart-card__title" style="margin: 0;">Real-Time Water Level &amp; Rain Correlation</h2>
+              <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.2rem;">
+                <!-- Live Rate of Rise (Surge Velocity) Meter -->
+                <span id="live-surge-rate" class="surge-rate-badge surge-rate--stable">
+                  <span id="surge-icon">━</span> <span id="surge-text">Rate: 0.0 cm/min (Stable)</span>
+                </span>
+                <span id="live-current-val" style="font-size: 0.75rem; color: #38bdf8; font-family: var(--font-mono); font-weight: 700;">--% (-- cm)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="live-chart-toolbar" style="margin-left: auto; display: flex; align-items: center; gap: 0.4rem;">
+            <!-- Rain Overlay Toggle Button -->
+            <button type="button" id="btn-toggle-rain-bars" class="btn-chart-opt active" title="Toggle Rainfall overlay bars on the live timeline">
+              🌧️ Rain Bars: ON
+            </button>
+            <!-- Pause / Resume Stream Button -->
+            <button type="button" id="btn-pause-live" class="btn-chart-opt" title="Pause live chart streaming to inspect data">
+              ⏸️ Pause
+            </button>
+            <span class="chart-card__badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
+              <span class="live-ping-dot"></span> LIVE SENSOR
+            </span>
+          </div>
+        </div>
+
+        <div class="chart-wrap" style="position: relative;">
+          <canvas id="live-chart" role="img" aria-label="Live water level and rainfall chart"></canvas>
+        </div>
+
+        <!-- Visual Threshold Alarm Reference Legend -->
+        <div class="chart-threshold-legend">
+          <span class="legend-item"><span class="legend-line line--normal"></span> 0–49% Normal</span>
+          <span class="legend-item"><span class="legend-line line--warning"></span> 50% Warning Line</span>
+          <span class="legend-item"><span class="legend-line line--high"></span> 70% High Alert Line</span>
+          <span class="legend-item"><span class="legend-line line--critical"></span> 85% Critical Danger Line</span>
+          <span class="legend-item" style="margin-left: auto;"><span class="legend-bar bar--rain"></span> Rainfall (mm)</span>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-card__header">
+          <span>📊</span>
+          <h2 class="chart-card__title">Seasonal Month-Wise Trend</h2>
+          <span class="chart-card__badge">HISTORICAL</span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="history-chart" role="img" aria-label="Month-wise seasonal trend chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Multi-Region & City Flood Risk Map Section -->
+    <section class="map-card" aria-label="Geospatial Flood Risk">
+      <div class="chart-card__header">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <span style="font-size: 1.3rem;">🗺️</span>
+          <div>
+            <h2 class="chart-card__title" style="margin: 0;">Multi-City &amp; Regional Flood Risk Geospatial Map</h2>
+            <p style="margin: 0; font-size: 0.72rem; color: var(--text-muted);">Explore nationwide sensor points or zoom into critical heavy rainfall &amp; waterlogging hotspots across Indian metros</p>
+          </div>
+        </div>
+        <span class="chart-card__badge">GEO-ANALYTICS</span>
+      </div>
+
+      <div class="map-controls">
+        <div class="map-control-item">
+          <label for="map-region-select">📍 Region / City:</label>
+          <select id="map-region-select" class="map-select">
+            <option value="all">🇮🇳 All India (National Overview)</option>
+            <optgroup label="Western India">
+              <option value="mumbai">📍 Mumbai (MMR &amp; Mithi Basin)</option>
+              <option value="pune">📍 Pune (Mula-Mutha Basin)</option>
+              <option value="ahmedabad">📍 Ahmedabad (Sabarmati &amp; Underpasses)</option>
+            </optgroup>
+            <optgroup label="Northern India">
+              <option value="delhi">📍 Delhi NCR (Yamuna &amp; Underpasses)</option>
+            </optgroup>
+            <optgroup label="Southern India">
+              <option value="bengaluru">📍 Bengaluru (Raja Kaluves &amp; Lakes)</option>
+              <option value="chennai">📍 Chennai (Adyar, Cooum &amp; Coastal)</option>
+              <option value="hyderabad">📍 Hyderabad (Musi River &amp; Nalas)</option>
+              <option value="kochi">📍 Kochi (Periyar &amp; Backwaters)</option>
+            </optgroup>
+            <optgroup label="Eastern &amp; North-Eastern India">
+              <option value="kolkata">📍 Kolkata (Hooghly &amp; Canals)</option>
+              <option value="patna">📍 Patna (Ganga-Punpun Basin)</option>
+              <option value="guwahati">📍 Guwahati (Brahmaputra &amp; Bharalu)</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="map-control-item">
+          <label for="map-mode">Projection:</label>
+          <select id="map-mode" class="map-select">
+            <option value="scatter">Scatter Points</option>
+            <option value="density">Density Heatmap</option>
+          </select>
+        </div>
+
+        <div class="map-quick-pills">
+          <button type="button" class="btn-city-pill active" data-city="all">🇮🇳 All India</button>
+          <button type="button" class="btn-city-pill" data-city="mumbai">Mumbai</button>
+          <button type="button" class="btn-city-pill" data-city="delhi">Delhi NCR</button>
+          <button type="button" class="btn-city-pill" data-city="bengaluru">Bengaluru</button>
+          <button type="button" class="btn-city-pill" data-city="chennai">Chennai</button>
+          <button type="button" class="btn-city-pill" data-city="kolkata">Kolkata</button>
+          <button type="button" class="btn-city-pill" data-city="hyderabad">Hyderabad</button>
+        </div>
+      </div>
+
+      <!-- Selected Region Hotspot Banner -->
+      <div id="region-info-banner" class="region-info-banner">
+        <div class="rib-header">
+          <span class="rib-icon" id="rib-icon">🇮🇳</span>
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <h4 id="rib-title" class="rib-title">All India National Flood Overview</h4>
+              <span id="rib-badge" class="rib-badge">NATIONWIDE</span>
+            </div>
+            <p id="rib-desc" class="rib-desc">Displaying 500+ geospatial sensor survey records across India. Select any city above to view high-risk heavy rainfall and chronic waterlogging hotspots.</p>
+          </div>
+        </div>
+        <div class="rib-stats" id="rib-stats">
+          <div class="rib-stat"><span class="rib-label">Focus Area</span><strong id="rib-stat-area">All India</strong></div>
+          <div class="rib-stat"><span class="rib-label">Primary Basin</span><strong id="rib-stat-basin">Multi-River Catchments</strong></div>
+          <div class="rib-stat"><span class="rib-label">Monsoon Rainfall</span><strong id="rib-stat-rain">50–350 mm/day</strong></div>
+          <div class="rib-stat"><span class="rib-label">Hotspots Tracked</span><strong id="rib-stat-count">All Survey Points</strong></div>
+        </div>
+      </div>
+
+      <div id="india-flood-map" class="map-plot" aria-label="Flood risk map of India"></div>
+    </section>
+
+    <!-- ── Recent Rainfall Events (Date & Time Log) ─────────────── -->
+    <section class="rain-events-section" aria-label="Rainfall Events Date and Time Log">
+      <div class="chart-card__header">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <span style="font-size: 1.3rem;">🌧️</span>
+          <div>
+            <h2 class="chart-card__title" style="margin: 0;">Recent Rainfall Events (Date &amp; Time Log)</h2>
+            <p style="margin: 0; font-size: 0.72rem; color: var(--text-muted);">Recorded rain dates, peak diurnal storm times, and flood risk impact</p>
+          </div>
+        </div>
+        <span class="chart-card__badge" style="background: rgba(6, 182, 212, 0.15); color: #22d3ee; border: 1px solid rgba(6, 182, 212, 0.3);">CHRONOLOGICAL LOG</span>
+      </div>
+
+      <div class="rain-table-container">
+        <table class="rain-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>📅 Rain Date</th>
+              <th>⏰ Peak Time</th>
+              <th>🌧️ Rainfall (mm)</th>
+              <th>Intensity</th>
+              <th>Water Level Impact</th>
+              <th>Flood Status</th>
+            </tr>
+          </thead>
+          <tbody id="dashboard-rain-events-tbody">
+            <tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1rem;">Loading rainfall events with date &amp; time...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Status Indicator Reference Row -->
+    <section class="indicator-grid" aria-label="Status Threshold Ranges">
+      <div class="indicator-box" id="status-normal">
+        <div class="indicator-icon">✓</div>
+        <div class="indicator-label">NORMAL</div>
+        <div class="indicator-range">0% – 49%</div>
+      </div>
+
+      <div class="indicator-box" id="status-warning">
+        <div class="indicator-icon">〜</div>
+        <div class="indicator-label">WARNING</div>
+        <div class="indicator-range">50% – 69%</div>
+      </div>
+
+      <div class="indicator-box" id="status-high">
+        <div class="indicator-icon">!</div>
+        <div class="indicator-label">HIGH</div>
+        <div class="indicator-range">70% – 84%</div>
+      </div>
+
+      <div class="indicator-box" id="status-critical">
+        <div class="indicator-icon">!!</div>
+        <div class="indicator-label">CRITICAL</div>
+        <div class="indicator-range">85% – 100%</div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ════════════════════════════════════════
+       FOOTER
+  ════════════════════════════════════════ -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <span>Last Update: <strong id="last-updated">--:--:--</strong></span>
+      <span>Hardware Node: <strong>AQUA-001</strong></span>
+      <span>AquaAlert v1.0</span>
+      <span><a href="/about" class="footer-link">Hardware &amp; API Specs →</a></span>
+    </div>
+  </footer>
+
+  <script src="/static/dashboard.js"></script>
+</body>
+</html>

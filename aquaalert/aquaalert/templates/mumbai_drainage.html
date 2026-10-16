@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AquaAlert — Mumbai Monsoon Drainage &amp; IoT Command Center</title>
+  <meta name="description" content="Real-time stormwater drainage water level monitoring and heavy rainfall drain locator across Mumbai, directly connected to ESP32 ultrasonic sensors, 16x2 LCD, LEDs, and buzzer."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- Core & Dedicated Mumbai Drainage Styles -->
+  <link rel="stylesheet" href="/static/style.css"/>
+  <link rel="stylesheet" href="/static/mumbai_drainage.css"/>
+
+  <!-- Socket.IO & Leaflet JS -->
+  <script src="/static/socket.io.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+<body class="mumbai-body">
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SITE HEADER & NAVIGATION
+  ══════════════════════════════════════════════════════════════ -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <span class="header-icon">🌧️</span>
+        <div class="header-text">
+          <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+            <h1 class="header-title">AquaAlert</h1>
+            <span class="badge-monsoon-live">
+              <span class="pulse-dot-red"></span>
+              MUMBAI MONSOON OPERATIONS
+            </span>
+            <span class="badge-hardware-online" id="global-hw-badge">
+              <span class="pulse-dot-green"></span>
+              ESP32 DEV CONNECTED
+            </span>
+          </div>
+          <p class="header-subtitle">Stormwater Drainage Telemetry • Heavy Rainfall Drain Locator • Arabian Sea Tide Command</p>
+        </div>
+      </div>
+      <nav class="header-nav">
+        <a href="/"                class="nav-link">🏠 Home</a>
+        <a href="/dashboard"       class="nav-link">📊 Dashboard</a>
+        <a href="/mumbai-drainage" class="nav-link nav-link--active">🌧️ Mumbai Drainage</a>
+        <a href="/analytics"       class="nav-link">🔮 Analytics</a>
+        <a href="/about"           class="nav-link">ℹ️ About</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       MAIN CONTENT CONTAINER
+  ══════════════════════════════════════════════════════════════ -->
+  <main class="main-content mumbai-container">
+
+    <!-- ── Emergency Warning & Tide Telemetry Banner ─────────── -->
+    <section class="monsoon-alert-banner" id="monsoon-banner" role="alert" aria-live="assertive">
+      <div class="monsoon-alert-left">
+        <span class="alert-icon-anim" id="alert-banner-icon">🚨</span>
+        <div class="alert-banner-text">
+          <div class="alert-banner-headline" id="alert-headline">
+            HEAVY RAINFALL WARNING IN EFFECT: Central &amp; Western Suburbs (Santacruz / Kurla / Dadar)
+          </div>
+          <div class="alert-banner-sub" id="alert-subtext">
+            Drains near active downpour cells experiencing rapid surge. 8 Drains flagged in critical proximity.
+          </div>
+        </div>
+      </div>
+      <div class="monsoon-tide-card" id="tide-summary-card">
+        <div class="tide-card-header">
+          <span>🌊 ARABIAN SEA TIDE</span>
+          <span class="tide-status-tag" id="tide-lock-tag">GATES LOCKED</span>
+        </div>
+        <div class="tide-height-val" id="tide-height-val">
+          4.62 m <small style="font-size: 0.8rem; color: #f87171;">(Spring Surge &gt; 4.5m)</small>
+        </div>
+        <div class="tide-details" id="tide-phase-text">
+          Peak Tide: 14:48 IST • High Tide Phase Active
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Physical ESP32 Hardware Digital Twin Section ───────── -->
+    <section class="hardware-twin-section" aria-label="ESP32 Hardware Module and Digital Twin">
+      <div class="hardware-twin-header">
+        <div class="hw-title-group">
+          <span class="hw-icon">📟</span>
+          <div>
+            <h2 class="hw-title">ESP32 IoT Dev Module &amp; Sensor Actuators</h2>
+            <p class="hw-subtitle">AJ-SR04M Waterproof Ultrasonic Sensor • 16×2 I2C LCD • Status LEDs (GPIO 27/26/25) • Buzzer</p>
+          </div>
+        </div>
+
+        <div class="hw-controls-bar">
+          <div class="hw-node-selector">
+            <label for="hw-drain-select">Deploy ESP32 Node To:</label>
+            <select id="hw-drain-select" class="select-drain-binding" title="Choose which Mumbai drain this physical ESP32 sensor is monitoring">
+              <option value="DRN-MUM-001" selected>📍 Hindmata Britannia Basin Drain (Ward F/North)</option>
+              <option value="DRN-MUM-002">📍 Milan Subway Stormwater Sump (Santacruz)</option>
+              <option value="DRN-MUM-003">📍 Kurla Kranti Nagar Mithi Confluence (Kurla)</option>
+              <option value="DRN-MUM-004">📍 Andheri Subway Mogra Nullah Culvert (Andheri)</option>
+              <option value="DRN-MUM-005">📍 Gandhi Market / King's Circle Drain (Sion)</option>
+              <option value="DRN-MUM-006">📍 Dharavi Mahim Creek Outfall (Dharavi)</option>
+              <option value="DRN-MUM-008">📍 Bandra Gazdarbandh Outfall (Bandra)</option>
+            </select>
+          </div>
+
+          <div class="hw-audio-toggle">
+            <button type="button" id="btn-toggle-buzzer-audio" class="btn-buzzer-audio" title="Toggle browser web-audio buzzer siren on/off">
+              <span id="buzzer-audio-icon">🔊</span>
+              <span id="buzzer-audio-text">Buzzer Sound: ON</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hardware Module Grid: 16x2 LCD + LEDs + Ultrasonic Gauges -->
+      <div class="hw-devices-grid">
+
+        <!-- 1. Authentic 16x2 Character LCD Module -->
+        <div class="lcd-device-module" id="lcd-device">
+          <div class="lcd-pcb-screw screw--tl"></div>
+          <div class="lcd-pcb-screw screw--tr"></div>
+          <div class="lcd-pcb-screw screw--bl"></div>
+          <div class="lcd-pcb-screw screw--br"></div>
+
+          <div class="lcd-module-top">
+            <div class="lcd-badge-left">
+              <span class="lcd-dot-blue"></span>
+              <span>16×2 I2C CHARACTER LCD (0x27)</span>
+            </div>
+            <span class="lcd-sync-pill" id="lcd-sync-status">ESP32 SYNCED</span>
+          </div>
+
+          <div class="lcd-bezel-frame">
+            <div class="lcd-glass-panel">
+              <div class="lcd-scanline-overlay"></div>
+              <!-- Line 1: 16 discrete characters -->
+              <div class="lcd-text-row" id="hw-lcd-row-1" aria-label="LCD Row 1">HINDMATA DRAIN  </div>
+              <!-- Line 2: 16 discrete characters -->
+              <div class="lcd-text-row" id="hw-lcd-row-2" aria-label="LCD Row 2">LVL: 77%    HIGH</div>
+            </div>
+          </div>
+
+          <div class="lcd-module-bottom">
+            <span class="silkscreen-text">SDA: GPIO 21 • SCL: GPIO 22 • 5V VCC</span>
+            <span class="lcd-refresh-tag" id="lcd-last-refresh">Update: Real-Time</span>
+          </div>
+        </div>
+
+        <!-- 2. Three Physical Status LEDs (Green, Yellow, Red) -->
+        <div class="leds-device-module">
+          <div class="leds-card-title">
+            <span>💡 GPIO STATUS INDICATORS</span>
+            <span class="hw-chip-tag">3-CHANNEL ACTUATOR</span>
+          </div>
+
+          <div class="led-lamps-container">
+            <!-- GREEN LED (<50% NORMAL) -->
+            <div class="led-lamp-unit" id="lamp-green">
+              <div class="led-bulb bulb--green" id="bulb-green"></div>
+              <div class="led-meta">
+                <span class="led-color-name">NORMAL</span>
+                <span class="led-gpio-pin">GPIO 27 (&lt;50%)</span>
+              </div>
+            </div>
+
+            <!-- YELLOW LED (50-69% WARNING) -->
+            <div class="led-lamp-unit" id="lamp-yellow">
+              <div class="led-bulb bulb--yellow" id="bulb-yellow"></div>
+              <div class="led-meta">
+                <span class="led-color-name">WARNING</span>
+                <span class="led-gpio-pin">GPIO 26 (50–69%)</span>
+              </div>
+            </div>
+
+            <!-- RED LED (>=70% HIGH / CRITICAL) -->
+            <div class="led-lamp-unit" id="lamp-red">
+              <div class="led-bulb bulb--red active-glow" id="bulb-red"></div>
+              <div class="led-meta">
+                <span class="led-color-name">HIGH / CRIT</span>
+                <span class="led-gpio-pin">GPIO 25 (≥70%)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Buzzer Actuator Banner -->
+          <div class="buzzer-actuator-bar" id="hw-buzzer-bar">
+            <span class="buzzer-speaker-icon" id="buzzer-speaker-icon">📢</span>
+            <div class="buzzer-info-text">
+              <div class="buzzer-title" id="buzzer-title-text">BUZZER ACTIVE (GPIO 23)</div>
+              <div class="buzzer-sub" id="buzzer-sub-text">Warning pulse alarm sounding for High Water Level</div>
+            </div>
+            <span class="buzzer-state-pill pill--pulse" id="buzzer-state-pill">PULSING</span>
+          </div>
+        </div>
+
+        <!-- 3. Waterproof Ultrasonic Sensor Telemetry Card -->
+        <div class="ultrasonic-device-module">
+          <div class="us-card-title">
+            <span>📡 AJ-SR04M SENSOR TELEMETRY</span>
+            <span class="hw-chip-tag">TRIG: 5 • ECHO: 18</span>
+          </div>
+
+          <div class="us-metrics-row">
+            <div class="us-metric-box">
+              <span class="us-metric-lbl">Distance to Water</span>
+              <span class="us-metric-val" id="hw-distance-val">34.5 cm</span>
+              <span class="us-metric-note">Air Gap from Sensor</span>
+            </div>
+            <div class="us-metric-box us-metric-box--highlight">
+              <span class="us-metric-lbl">Drain Water Depth</span>
+              <span class="us-metric-val" id="hw-depth-val">115.5 cm</span>
+              <span class="us-metric-note" id="hw-max-depth-note">of 150 cm Max Sump</span>
+            </div>
+            <div class="us-metric-box">
+              <span class="us-metric-lbl">Drain Capacity</span>
+              <span class="us-metric-val" id="hw-capacity-val" style="color: #f97316;">77%</span>
+              <span class="us-metric-note" id="hw-status-badge">HIGH ALERT</span>
+            </div>
+          </div>
+
+          <!-- Capacity Bar -->
+          <div class="hw-capacity-track">
+            <div class="hw-capacity-fill" id="hw-capacity-fill" style="width: 77%; background: linear-gradient(90deg, #f59e0b, #ef4444);"></div>
+          </div>
+          <div class="capacity-scale-labels">
+            <span>0% (Empty)</span>
+            <span>50% (Warn)</span>
+            <span>70% (High)</span>
+            <span>85%+ (Critical)</span>
+            <span>100%</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── "Locate Drains near Heavy Rainfall" Smart Action Bar ─ -->
+    <section class="smart-filter-bar" aria-label="Heavy Rainfall Drain Locator Controls">
+      <div class="smart-filter-left">
+        <!-- Prominent Heavy Rain Locator Button -->
+        <button type="button" id="btn-locate-heavy-rain" class="btn-heavy-rain-action active" title="Show only drains located in or near heavy rainfall zones in Mumbai (>= 65 mm/hr)">
+          <span class="rain-cloud-icon">⛈️</span>
+          <span>LOCATE DRAINS IN HEAVY RAINFALL (≥65 mm/h)</span>
+          <span class="heavy-drain-count" id="heavy-drain-badge">8 Drains</span>
+        </button>
+
+        <!-- Quick Filter Buttons -->
+        <button type="button" class="btn-filter-chip" data-filter="all" id="filter-btn-all">All Drains (16)</button>
+        <button type="button" class="btn-filter-chip" data-filter="critical" id="filter-btn-critical">🚨 Critical / High (8)</button>
+        <button type="button" class="btn-filter-chip" data-filter="subways" id="filter-btn-subways">🚇 Rail Subways (3)</button>
+        <button type="button" class="btn-filter-chip" data-filter="tide_locked" id="filter-btn-tide">🌊 Tidal Outfalls (5)</button>
+      </div>
+
+      <div class="smart-filter-right">
+        <!-- Ward Filter Dropdown -->
+        <select id="ward-filter-select" class="select-ward" title="Filter by BMC Administrative Ward">
+          <option value="">All BMC Wards</option>
+          <option value="F/North">Ward F/North (Sion / Gandhi Market)</option>
+          <option value="F/South">Ward F/South (Parel / Hindmata)</option>
+          <option value="H/West">Ward H/West (Bandra / Khar / Santacruz)</option>
+          <option value="K/West">Ward K/West (Andheri / Juhu)</option>
+          <option value="L Ward">Ward L (Kurla / Bail Bazaar / Sakinaka)</option>
+          <option value="G/North">Ward G/North (Dharavi / Mahim)</option>
+          <option value="G/South">Ward G/South (Worli / Haji Ali)</option>
+          <option value="M/West">Ward M/West (Chembur / Shell Colony)</option>
+          <option value="P/North">Ward P/North (Malad Subway)</option>
+        </select>
+
+        <!-- Search Input -->
+        <div class="search-box-wrapper">
+          <span class="search-glass-icon">🔍</span>
+          <input type="text" id="drain-search-input" placeholder="Search drain, nullah, subway..." aria-label="Search drains"/>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Split Operations Center: Leaflet Map & Live Drains ── -->
+    <section class="operations-grid" aria-label="Mumbai Drainage Geospatial Operations">
+
+      <!-- LEFT / MAP PANEL -->
+      <div class="map-column">
+        <div class="map-panel-card">
+          <div class="map-panel-header">
+            <div class="map-title-left">
+              <span class="map-icon">🗺️</span>
+              <div>
+                <h3 class="map-title">Geospatial Drainage &amp; Radar Rain Map</h3>
+                <p class="map-subtitle">Live Mumbai coordinates • Rain Radar Rings (≥65 mm/h) • Outfall Vectors • ESP32 Beacon</p>
+              </div>
+            </div>
+            <div class="map-actions-right">
+              <span class="map-legend-item"><span class="legend-dot dot-normal"></span> Normal</span>
+              <span class="map-legend-item"><span class="legend-dot dot-warn"></span> Warning</span>
+              <span class="map-legend-item"><span class="legend-dot dot-high"></span> High</span>
+              <span class="map-legend-item"><span class="legend-dot dot-crit"></span> Critical</span>
+              <span class="map-legend-item"><span class="legend-dot dot-hw-beacon"></span> ESP32 Node</span>
+            </div>
+          </div>
+
+          <!-- The Leaflet Map Container -->
+          <div id="mumbai-leaflet-map" class="mumbai-map-container" role="application" aria-label="Interactive Map of Mumbai Stormwater Drains"></div>
+
+          <!-- Map Footer Stats -->
+          <div class="map-panel-footer">
+            <div class="map-stat-col">
+              <span class="map-stat-lbl">Active Weather Stations</span>
+              <span class="map-stat-val" id="active-stations-val">8 Stations (4 Heavy Rain)</span>
+            </div>
+            <div class="map-stat-col">
+              <span class="map-stat-lbl">Max Recorded Rain</span>
+              <span class="map-stat-val" id="max-rain-val" style="color: #f87171;">98.0 mm/h (Kurla AWS)</span>
+            </div>
+            <div class="map-stat-col">
+              <span class="map-stat-lbl">High-Risk Drains</span>
+              <span class="map-stat-val" id="crit-drains-count" style="color: #f87171;">8 In Critical Zone</span>
+            </div>
+            <div class="map-stat-col">
+              <span class="map-stat-lbl">BMC Pumping Stations</span>
+              <span class="map-stat-val" style="color: #34d399;">7 Online • 22 Pumps Active</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT / DRAIN CARDS & REAL-TIME TELEMETRY FEED -->
+      <div class="drains-column">
+        <div class="drains-panel-card">
+          <div class="drains-panel-header">
+            <div>
+              <h3 class="drains-title">Monitored Drainage Sump Telemetry</h3>
+              <p class="drains-sub" id="drains-showing-text">Displaying 16 stormwater drains sorted by flood risk</p>
+            </div>
+            <button type="button" id="btn-refresh-drains" class="btn-refresh-drains" title="Re-fetch drain telemetry">
+              <span>🔄 Refresh</span>
+            </button>
+          </div>
+
+          <!-- Drains List Container -->
+          <div class="drains-cards-container" id="drains-cards-list">
+            <!-- Dynamic drain cards rendered here by JS -->
+            <div class="drain-loading-skeleton">Loading Mumbai drainage telemetry...</div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── Monsoon Weather Scenarios & Simulation Bar ────────── -->
+    <section class="monsoon-sim-section" aria-label="Monsoon Simulation and Stress Testing Controls">
+      <div class="sim-section-header">
+        <div class="sim-title-group">
+          <span>🌦️</span>
+          <div>
+            <h4 class="sim-title">Monsoon Simulation &amp; Stress Testing Controller</h4>
+            <p class="sim-subtitle">Simulate real-time cloudbursts, intense downpours, or tidal surges to evaluate drain response and emergency pump activation.</p>
+          </div>
+        </div>
+        <div class="sim-current-tag" id="sim-active-scenario">Active Mode: Heavy Downpour Scenario</div>
+      </div>
+
+      <div class="sim-presets-row">
+        <button type="button" class="btn-sim-preset" data-scenario="normal" id="preset-normal">
+          <span>☀️ Normal Showers</span>
+          <small>15 mm/h • Low Tide (2.4m)</small>
+        </button>
+        <button type="button" class="btn-sim-preset active" data-scenario="heavy_rain" id="preset-heavy">
+          <span>🌧️ Heavy Downpour</span>
+          <small>85 mm/h • Dadar/Santacruz</small>
+        </button>
+        <button type="button" class="btn-sim-preset btn-preset-danger" data-scenario="cloudburst_santacruz" id="preset-cloudburst">
+          <span>⛈️ Red Alert Cloudburst</span>
+          <small>140 mm/h • Milan &amp; Kurla Flooding</small>
+        </button>
+        <button type="button" class="btn-sim-preset" data-scenario="high_tide_surge" id="preset-hightide">
+          <span>🌊 Spring High Tide Surge</span>
+          <small>4.88m Sea Tide • Coastal Sluice Lock</small>
+        </button>
+      </div>
+
+      <div class="sim-slider-panel">
+        <div class="slider-header-row">
+          <label for="monsoon-rain-slider">Custom Regional Downpour Intensity:</label>
+          <strong id="slider-rain-val">85 mm/hr (Heavy Rain)</strong>
+        </div>
+        <input type="range" id="monsoon-rain-slider" min="5" max="180" value="85" step="5" class="rain-intensity-slider" title="Slide to adjust simulated rainfall over Mumbai"/>
+        <div class="slider-scale">
+          <span>5 mm/h (Light)</span>
+          <span>45 mm/h (Moderate)</span>
+          <span style="color: #fbbf24; font-weight: 700;">65 mm/h (IMD Heavy Threshold)</span>
+          <span style="color: #f87171; font-weight: 700;">115 mm/h (Very Heavy)</span>
+          <span style="color: #ef4444; font-weight: 800;">180 mm/h (Extreme Cloudburst)</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       FOOTER
+  ══════════════════════════════════════════════════════════════ -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="footer-icon">🌊</span>
+        <div>
+          <div class="footer-title">AquaAlert — Mumbai Monsoon Drainage Command</div>
+          <div class="footer-desc">Urban Stormwater Flood Telemetry • ESP32 IoT Node AQUA-001 • BMC Disaster Management Integration</div>
+        </div>
+      </div>
+      <div class="footer-copy">
+        Developed for Flood Early Warning &amp; Urban Drainage Automation.
+      </div>
+    </div>
+  </footer>
+
+  <!-- Dedicated Mumbai Drainage JS -->
+  <script src="/static/mumbai_drainage.js"></script>
+</body>
+</html>
