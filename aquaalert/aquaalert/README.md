@@ -111,34 +111,61 @@ With a prototype depth of 100 cm, the status thresholds are:
 ## Project structure
 
 ```text
-D:\aquaalert
-├── Datasets
-│   └── flood_risk_dataset_india.csv
-├── esp32
-│   ├── aquaalert_esp32.ino
-│   └── secrets.h.example
-├── server
-│   ├── app.py
-│   ├── analytics.py
-│   ├── database.py
-│   ├── validation.py
-│   └── aquaalert.db
-├── static
-│   ├── dashboard.js
-│   ├── style.css
-│   └── analytics.js
-├── templates
-│   ├── about.html
-│   ├── analytics.html
-│   ├── charts.html
-│   └── dashboard.html
-├── tests
-│   └── test_aquaalert.py
-├── README.md
-├── test_server.py
-├── .gitignore
-├── .venv
-└── requirements.txt
+aquaalert/
+├── Datasets/
+│   └── flood_risk_dataset_india.csv       # India flood risk historical & geospatial dataset
+├── docs/
+│   ├── routes/                            # Markdown documentation for all web and API routes
+│   │   ├── 01_home_page.md
+│   │   ├── 02_dashboard_page.md
+│   │   ├── 03_analytics_page.md
+│   │   ├── 04_about_page.md
+│   │   ├── 05_api_data.md
+│   │   ├── 06_api_latest.md
+│   │   ├── 07_api_history.md
+│   │   ├── 08_api_status.md
+│   │   ├── 09_api_map_points.md
+│   │   ├── 10_api_analytics.md
+│   │   └── README.md
+│   ├── AquaAlert_ESP32_Component_Connection_Guide.docx
+│   └── AquaAlert_Full_Project_Documentation_Times_New_Roman.docx
+├── esp32/
+│   ├── AquaAlert/
+│   │   └── AquaAlert.ino                  # Main Arduino sketch for ESP32 sensor node
+│   ├── aquaalert_esp32.ino                # Standalone ESP32 firmware prototype
+│   └── secrets.h.example                  # Template for Wi-Fi credentials and API keys
+├── server/
+│   ├── analytics.py                       # Flood risk analysis and ML trend forecasting
+│   ├── app.py                             # Core Flask backend and Socket.IO application
+│   ├── aquaalert.db                       # SQLite database for water-level telemetry
+│   ├── database.py                        # Database connection, schemas, and queries
+│   ├── geo_resolver.py                    # Geospatial resolver for location-tagged readings
+│   ├── mumbai_drainage.py                 # Mumbai-specific drainage network analysis & routing
+│   ├── requirements.txt                   # Backend Python dependencies
+│   ├── serial_bridge.py                   # Serial communication bridge for USB testing
+│   ├── validation.py                      # Request validation and API authentication
+│   └── weather_service.py                 # Real-time weather API integration
+├── static/
+│   ├── analytics.css                      # Analytics and ML forecasting stylesheet
+│   ├── analytics.js                       # Chart rendering and analytics interactions
+│   ├── dashboard.js                       # Live Socket.IO client, gauges, and warning alerts
+│   ├── home.js                            # Landing page scripts and interactive animations
+│   ├── mumbai_drainage.css                # Mumbai drainage dashboard styling
+│   ├── mumbai_drainage.js                 # Drainage network visualization logic
+│   ├── socket.io.min.js                   # Local vendor bundle for Socket.IO client
+│   └── style.css                          # Global dark/light theme and base styling
+├── templates/
+│   ├── about.html                         # System architecture and hardware specifications
+│   ├── analytics.html                     # Historical flood trend analysis and charts
+│   ├── charts.html                        # Real-time telemetry chart interface
+│   ├── dashboard.html                     # Live sensor monitoring dashboard
+│   └── mumbai_drainage.html               # Mumbai municipal drainage monitoring view
+├── tests/
+│   ├── test_aquaalert.py                  # Integration and unit tests for Flask API & db
+│   └── test_mumbai_drainage.py            # Unit tests for Mumbai drainage calculations
+├── .gitignore                             # Git ignore rules for logs, virtualenvs, and db files
+├── README.md                              # Comprehensive project overview and documentation
+└── requirements.txt                       # Project-level Python dependencies
 ```
 
 ---
